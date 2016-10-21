@@ -10,7 +10,6 @@ category:            Language
 build-type:          Simple
 cabal-version:       >=1.10
 
-
 library
   hs-source-dirs:      .
   build-depends:       array     >= 0.5 && < 0.6
@@ -53,6 +52,7 @@ executable cpi
                      , mtl       >= 2.2 && < 3.0
                      , syb       >= 0.6 && < 0.7
                      , wl-pprint >= 1.2 && < 2.0
+  build-tools:         alex, happy
   other-modules:       CP.Lexer
                      , CP.Parser
                      , GV.Lexer
@@ -83,6 +83,7 @@ executable gvi
                      , mtl       >= 2.2 && < 3.0
                      , syb       >= 0.6 && < 0.7
                      , wl-pprint >= 1.2 && < 2.0
+  build-tools:         alex, happy
   other-modules:       CP.Lexer
                      , CP.Parser
                      , GV.Lexer
