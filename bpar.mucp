@@ -1,0 +1,90 @@
+--------------------------------------------------------------------------------
+-- Balanced Parentheses (Generalized)
+--------------------------------------------------------------------------------
+
+type  BPar1(A,B)     = mu X.+{stop:A*B, down:A*(X*B), next:X*X}.
+type  BPar(A,B)      = +{none:1, some:BPar1(A,B)}.
+def   None(x)        = x/none.x[].0.
+check None(x)        |- x:BPar(A,B).
+def   Some(y,x)      = x/some.y<->x.
+check Some(y,x)      |- y:~BPar1(A,B), x:BPar(A,B).
+def   Stop(a,b,x)    = rec x.x/stop.x[x1].(x1<->a | x<->b).
+check Stop(a,b,x)    |- a:~A, b:~B, x:BPar1(A,B).
+def   Down(a,y,b,x)  = rec x.x/down.x[x1].(x1<->a | x[x2].(x2<->y | x<->b)).
+check Down(a,y,b,x)  |- a:~A, y:~BPar1(A,B), b:~B, x:BPar1(A,B).
+def   Next(y,z,x)    = rec x.x/next.x[x1].(x1<->y | x<->z).
+check Next(y,z,x)    |- y:~BPar1(A,B), z:~BPar1(A,B), x:BPar1(A,B).
+
+
+--------------------------------------------------------------------------------
+-- Balanced Parentheses (Specialized)
+--------------------------------------------------------------------------------
+
+type  Paren         = +{open:1,close:1}.
+def   Open(a)       = a/open.a[].0.
+check Open(a)       |- a:Paren.
+def   Close(b)      = b/close.b[].0.
+check Close(b)      |- b:Paren.
+type  Parens1       = BPar1(Paren,Paren).
+type  Parens        = BPar(Paren,Paren).
+
+
+-- We can compose the above definitions into a process which sends the pattern AABBAB.
+-- However, it turns out that the syntax for definitions does not include cuts, so we
+-- run the below process, and then copy the normalised version.
+check
+    new [aabbab:Parens1]
+       (new [aabb:Parens1]
+           (new [ab:Parens1]
+               (new [a:Paren] (Open(a) | new [b:Paren] (Close(b) | Stop(a,b,ab)))
+               |new [a:Paren] (Open(a) | new [b:Paren] (Close(b) | Down(a,ab,b,aabb))))
+           |new [ab:Parens1]
+                (new [a:Paren] (Open(a) | new [b:Paren] (Close(b) | Stop(a,b,ab)))
+                |Next(aabb,ab,aabbab)))
+       |Some(aabbab,x))
+       |- x:Parens.
+
+
+-- The process below is the normalised version of the process above.
+def AABBAB(x) =
+    x/some.rec x.x/next.x[x1].(rec x1.x1/down.x1[x1].(x1/open.x1[].0|x1[x2].(
+    rec x2.x2/stop.x2[x1].(x1/open.x1[].0|x2/close.x2[].0)|x1/close.x1[].0))|
+    rec x.x/stop.x[x1].(x1/open.x1[].0|x/close.x[].0)).
+check AABBAB(x) |- x:Parens.
+
+
+-- It is a little bit unpleasant that you can't have a case, which consumes
+-- some subset of the resources in both branches, and then continues to consume
+-- the remainder in the rest of the process.
+--
+-- Because of that, the definition is rather obtuse (as we need to consume the
+-- parentheses, and they are represented as `1 + 1`. Note that in both stop and
+-- down the code in each branch is identical.
+def Size1(x,n) = corec x(n).case x
+                 { stop : x(a).case a
+                          { open  : a().case x
+                            { open  : x().n*[2].n[].0
+                            ; close : x().n*[2].n[].0}
+                          ; close : a().case x
+                            { open  : x().n*[2].n[].0
+                            ; close : x().n*[2].n[].0}
+                          }
+                 ; down : x(a).case a
+                          { open  : a().x(m).m*(i).m().case x
+                            { open  : x().n*[i+2].n[].0
+                            ; close : x().n*[i+2].n[].0}
+                          ; close : a().x(m).m*(i).m().case x
+                            { open  : x().n*[i+2].n[].0
+                            ; close : x().n*[i+2].n[].0}
+                          }
+                 ; next : x(y).y*(i).y().x*(j).x().n*[i+j].n[].0
+                 }.
+check Size1(x,n) |- x:~Parens1, n:int*1.
+
+def   Size(x,n)  = case x
+                   { none : x().n*[0].n[].0
+                   ; some : Size1(x,n)
+                   }.
+check Size(x,n)  |- x:~Parens, n:int*1.
+
+new [x:Parens] (AABBAB(x)|Size(x,n)) |- n:int*1.
