@@ -32,6 +32,7 @@ traceBehavior i b =
 into (t, Left err) = throwError (unlines ([traceBehavior i b | (i, b) <- zip [1..] t] ++ [err]))
 into (t, Right v)  = return t
 
+interp :: Defns -> Either Defn Assertion -> IO Defns
 interp ds (Left d) = return (addDefn ds d)
 interp ds (Right (Assert p b isCheck)) =
     case runM $ do (p', b') <- expandTop ds p b
@@ -79,13 +80,23 @@ repl ds = do s <- getInputLine "> "
     where trim = f . f
               where f = reverse . dropWhile isSpace
 
+
+
+parseFile :: Defns -> FilePath -> IO Defns
 parseFile ds fn =
     do s <- readFile fn
        case parse tops s of
          Left err -> do putStrLn err
                         return ds
-         Right ts -> foldM interp ds ts
+         Right ts -> foldM interp ds (leftRights ts)
 
+leftRights :: [Either a b] -> [Either a b]
+leftRights xs = let (ls,rs) = partition isLeft xs in ls ++ rs
+  where
+    isLeft (Left  _) = True
+    isLeft (Right _) = False
+
+main :: IO ()
 main = do args <- getArgs
           let (interactive, rest) = partition ("-i" ==) args
           let (includeVariableIndexes, rest') = partition ("-v" ==) rest

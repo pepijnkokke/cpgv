@@ -191,7 +191,7 @@ check' (CoRec x z p) =
        d <- consume z
        case c of
          Nu v b ->
-             withOnly (const False) (provide z d (provide x (inst v (dual d) b) (check' p)))
+           withOnly isWhyNot (provide z d (provide x (inst v (dual d) b) (check' p)))
          _ -> unexpectedType x c (CoRec x z p)
 check' (Replicate x y p) =
     addError (Replicate x y p) $
